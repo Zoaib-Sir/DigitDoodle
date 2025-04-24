@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digit Doodle</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .problem-display {
+            font-size: 1.5em;
+            margin: 20px;
+            padding: 20px 30px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            color: #34495e;
+            font-weight: 600;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            margin: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .canvas-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            cursor: crosshair;
+            border-radius: 15px;
+        }
+
+        .clear-btn {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+            background: #c0392b;
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        .buttons {
+            margin: 25px 0;
+        }
+
+        button {
+            padding: 15px 35px;
+            font-size: 1.1em;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(52,152,219,0.3);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52,152,219,0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px;
+            background: rgba(255,255,255,0.98);
+            border-radius: 20px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+            z-index: 1000;
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            margin: 20px 0;
+            font-size: 1.2em;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+
+        .modal-correct {
+            border: 3px solid #2ecc71;
+            background: rgba(46,204,113,0.1);
+        }
+
+        .modal-incorrect {
+            border: 3px solid #e74c3c;
+            background: rgba(231,76,60,0.1);
+        }
+
+        .modal-close {
+            padding: 10px 30px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            transform: scale(1.05);
+            background: #2980b9;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                gap: 20px;
+            }
+            
+            canvas {
+                width: 250px;
+                height: 250px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Digit Doodle</h1>
+    <div class="problem-display" id="problemDisplay"></div>
+    <div class="buttons">
+        <button onclick="submitDrawings()">Submit Answer</button>
+    </div>
+    <div class="container">
+        <div class="canvas-container">
+            <div class="canvas-label">Tens Place</div>
+            <canvas id="canvas1" width="280" height="280"></canvas>
+            <button class="clear-btn" onclick="clearCanvas(1)">Clear</button>
+        </div>
+        <div class="canvas-container">
+            <div class="canvas-label">Ones Place</div>
+            <canvas id="canvas2" width="280" height="280"></canvas>
+            <button class="clear-btn" onclick="clearCanvas(2)">Clear</button>
+        </div>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content" id="modalContent"></div>
+        <button class="modal-close" onclick="closeModal()">OK</button>
+    </div>
+
+    <script>
+        let currentProblem = "";
+        let currentCorrectAnswer = "";
+        let pendingNewProblem = false;
+    
+        // Initialize problem on page load
+        fetch('/new_problem')
+            .then(response => response.json())
+            .then(data => {
+                currentProblem = data.problem;
+                currentCorrectAnswer = data.answer;
+                document.getElementById('problemDisplay').textContent = `Solve: ${data.problem}`;
+            });
+
+        function setupCanvas(canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000000';
+
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            function startDrawing(e) {
+                isDrawing = true;
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
+
+            function stopDrawing() {
+                isDrawing = false;
+            }
+        }
+
+        function isCanvasBlank(canvas) {
+            const context = canvas.getContext('2d');
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelBuffer = new Uint32Array(imageData.data.buffer);
+            return pixelBuffer.every(color => color === 0xFFFFFFFF);
+        }
+
+        function clearCanvas(num) {
+            const canvas = document.getElementById(`canvas${num}`);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function showModal(message, isCorrect) {
+            const modal = document.getElementById('resultModal');
+            const content = document.getElementById('modalContent');
+            
+            modal.className = `modal ${isCorrect ? 'modal-correct' : 'modal-incorrect'}`;
+            content.innerHTML = message;
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('resultModal').style.display = 'none';
+        }
+
+        async function closeModal() {
+        document.getElementById('resultModal').style.display = 'none';
+        
+        if (pendingNewProblem) {
+            try {
+                const newProblemResponse = await fetch('/new_problem');
+                const newProblem = await newProblemResponse.json();
+                currentProblem = newProblem.problem;
+                currentCorrectAnswer = newProblem.answer;
+                document.getElementById('problemDisplay').textContent = `Solve: ${newProblem.problem}`;
+                
+                // Clear canvases
+                clearCanvas(1);
+                clearCanvas(2);
+            } catch (error) {
+                console.error('Error:', error);
+                showModal('⚠️ Failed to load new problem. Please try again.', false);
+            }
+            pendingNewProblem = false;
+        }
+    }
+
+    async function submitDrawings() {
+        const canvas1 = document.getElementById('canvas1');
+        const canvas2 = document.getElementById('canvas2');
+        
+        if (isCanvasBlank(canvas1) || isCanvasBlank(canvas2)) {
+            showModal(`⚠️ Please fill both number boxes!<br><br>
+                      Correct answer was: <strong>${currentCorrectAnswer}</strong>`, false);
+            return;
+        }
+
+        const image1 = canvas1.toDataURL('image/png');
+        const image2 = canvas2.toDataURL('image/png');
+
+        try {
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    drawing1: image1,
+                    drawing2: image2
+                })
+            });
+            
+            const result = await response.json();
+            
+            let message;
+            if (result.correct) {
+                message = `✅ Correct!<br><br>
+                          Your answer: <strong>${result.userAnswer}</strong>`;
+            } else {
+                message = `❌ Incorrect<br><br>
+                          Your answer: <strong>${result.userAnswer}</strong><br>
+                          Correct answer: <strong>${result.correctAnswer}</strong>`;
+            }
+            
+            showModal(message, result.correct);
+            pendingNewProblem = true;
+
+        } catch (error) {
+            console.error('Error:', error);
+            showModal('⚠️ An error occurred. Please try again.', false);
+            pendingNewProblem = false;
+        }
+    }
+
+        // Initialize both canvases
+        setupCanvas(document.getElementById('canvas1'));
+        setupCanvas(document.getElementById('canvas2'));
+    </script>
+</body>
+</html>
