@@ -73,14 +73,6 @@ Train Epoch: 50 [51200/60000 (85%)]    Loss: 0.008027
 Test set: Average loss: 0.0000, Accuracy: 9964/10000 (99.64%)
 ```
 
-### Training Loss Curve
-
-![Training Loss Curve](path/to/training_loss_curve.png)
-
-### Validation Accuracy Curve
-
-![Validation Accuracy Curve](path/to/validation_accuracy_curve.png)
-
 ## Usage
 
 1. load the web page; a random problem appears
