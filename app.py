@@ -54,7 +54,6 @@ class EnhancedNet(nn.Module):
         x = self.classifier(x)
         return F.log_softmax(x, dim=1)
 
-# Load model
 model = EnhancedNet()
 model.load_state_dict(torch.load('best_model.pt'))
 model.eval()
@@ -63,21 +62,17 @@ def enhanced_preprocess(image_bytes):
     np_img = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(np_img, cv2.IMREAD_GRAYSCALE)
     
-    # Threshold and invert
     _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
     
-    # Remove noise
     kernel = np.ones((2,2), np.uint8)
     processed = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
     
-    # Find and center main contour
     contours, _ = cv2.findContours(processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
         cnt = max(contours, key=cv2.contourArea)
         x,y,w,h = cv2.boundingRect(cnt)
         roi = processed[y:y+h, x:x+w]
         
-        # Maintain aspect ratio
         if h > w:
             new_h = 20
             new_w = int(w * (20 / h))
@@ -87,7 +82,6 @@ def enhanced_preprocess(image_bytes):
         
         resized = cv2.resize(roi, (new_w, new_h))
         
-        # Center in 28x28 canvas
         canvas = np.zeros((28, 28), dtype=np.uint8)
         dx = (28 - new_w) // 2
         dy = (28 - new_h) // 2
@@ -95,7 +89,6 @@ def enhanced_preprocess(image_bytes):
     else:
         canvas = processed
     
-    # Convert to tensor
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
@@ -147,16 +140,13 @@ def submit():
         data = request.get_json()
         correct_answer = session.get('correct_answer', 'Unknown')
         
-        # Process images directly from base64
         drawing1_bytes = base64.b64decode(data['drawing1'].split(',')[1])
         drawing2_bytes = base64.b64decode(data['drawing2'].split(',')[1])
         
-        # Make predictions
         prediction1 = predict_digit(drawing1_bytes)
         prediction2 = predict_digit(drawing2_bytes)
         user_answer = int(f"{prediction1}{prediction2}")
         
-        # Verify answer
         correct = user_answer == correct_answer
         
         return jsonify({
